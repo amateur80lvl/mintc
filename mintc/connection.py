@@ -338,7 +338,7 @@ class TorConnection:
         or use set_handler to set custom handler.
         '''
         if self._custom_event_handler is None:
-            self.logger.error('Unhandled event:\n', '\n'.join(event))
+            self.logger.error('Unhandled event:\n %s', '\n'.join(event))
         else:
             await self._custom_event_handler(event)
 
