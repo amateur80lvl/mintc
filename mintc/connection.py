@@ -192,32 +192,38 @@ class TorConnection:
         Background task.
         Receive replies from Tor and assign them to pending requests.
         '''
-        while True:
-            try:
-                # receive reply
-                reply = await self._recv_reply()
+        try:
+            while True:
+                try:
+                    # receive reply
+                    reply = await self._recv_reply()
 
-                if reply[0].startswith('6'):
-                    # it's an event
-                    self._event_queue.put_nowait(reply)
-                    continue
+                    if reply[0].startswith('6'):
+                        # it's an event
+                        self._event_queue.put_nowait(reply)
+                        continue
 
-                # get pending request from queue,
-                request = await self._request_queue.get()
-                self._request_queue.task_done()
-                if request is None:
-                    # stop signal
+                    # get pending request from queue,
+                    request = await self._request_queue.get()
+                    self._request_queue.task_done()
+                    if request is None:
+                        # stop signal
+                        return
+
+                    # set reply and signalize completion
+                    request.reply = reply
+                    request.completion.set()
+                except ConnectionResetError:
+                    # connection closed, force stop
+                    await self.stop()
                     return
-
-                # set reply and signalize completion
-                request.reply = reply
-                request.completion.set()
-            except ConnectionResetError:
-                # connection closed, force stop
-                await self.stop()
-                return
-            except Exception:
-                self.logger.error(traceback.format_exc())
+                except Exception:
+                    self.logger.error(traceback.format_exc())
+                    raise
+        except:
+            # force stop in any unclear case
+            await self.stop()
+            raise
 
 
     async def _recv_reply(self):
@@ -274,7 +280,7 @@ class TorConnection:
         Returns None if controller is stopped.
         '''
         if self._writer is None:
-            return None
+            raise ConnectionResetError()
 
         # prepare request data to send
         if not isinstance(command, bytes):
@@ -303,7 +309,7 @@ class TorConnection:
                 await self._writer.drain()
             except Exception:
                 self.logger.error(traceback.format_exc())
-                return None
+                raise
 
         # put request to the queue
         self._request_queue.put_nowait(request)
@@ -312,7 +318,10 @@ class TorConnection:
         await request.completion.wait()
         # if receiver task is interrupted, then the event is set
         # but reply is left None
-        return request.reply
+        if request.reply is None:
+            raise ConnectionResetError()
+        else:
+            return request.reply
 
 
     async def _process_events(self):
