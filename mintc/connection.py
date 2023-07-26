@@ -126,9 +126,10 @@ class TorConnection:
         # to return empty data, so the receiver task can gracefully
         # stop if it waits for data.
         if self._writer is not None:
-            self._writer.close()
-            await self._writer.wait_closed()
+            writer = self._writer
             self._writer = None
+            writer.close()
+            await writer.wait_closed()
 
         self._clear_request_queue()
 
@@ -139,12 +140,14 @@ class TorConnection:
         # wait for background tasks to complete
         current_task = asyncio.current_task()
         if self._receiver_task and self._receiver_task is not current_task:
-            await self._receiver_task
+            task = self._receiver_task
             self._receiver_task = None
+            await task
 
         if self._event_task and self._event_task is not current_task:
-            await self._event_task
+            task = self._event_task
             self._event_task = None
+            await task
 
         # finally clear queues
         self._clear_request_queue()
