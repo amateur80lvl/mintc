@@ -139,15 +139,15 @@ class TorConnection:
 
         # wait for background tasks to complete
         current_task = asyncio.current_task()
-        if self._receiver_task and self._receiver_task is not current_task:
-            task = self._receiver_task
+        receiver_task = self._receiver_task
+        if receiver_task and receiver_task is not current_task:
             self._receiver_task = None
-            await task
+            await receiver_task
 
-        if self._event_task and self._event_task is not current_task:
-            task = self._event_task
+        event_task = self._event_task
+        if event_task and event_task is not current_task:
             self._event_task = None
-            await task
+            await event_task
 
         # finally clear queues
         self._clear_request_queue()
