@@ -124,7 +124,7 @@ class TorCommands:
         '''
         event_codes may start with EXTENDED according to torspec
         '''
-        if event_codes:
+        if event_codes and event_codes != [None]:
             command = f'SETEVENTS {" ".join(event_codes)}'
         else:
             command = 'SETEVENTS'
