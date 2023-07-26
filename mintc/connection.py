@@ -327,7 +327,7 @@ class TorConnection:
                 return
             # handle event
             try:
-                self.handle_event(event)
+                await self.handle_event(event)
             except Exception:
                 self.logger.error(traceback.format_exc())
 
