@@ -10,7 +10,6 @@ This module implements the basic communication with Tor control port.
 import asyncio
 from dataclasses import dataclass
 import re
-import traceback
 
 
 @dataclass
@@ -217,9 +216,6 @@ class TorConnection:
                     # connection closed, force stop
                     await self.stop()
                     return
-                except Exception:
-                    self.logger.error(traceback.format_exc())
-                    raise
         except:
             # force stop in any unclear case
             await self.stop()
@@ -307,8 +303,9 @@ class TorConnection:
             try:
                 self._writer.write(request.command)
                 await self._writer.drain()
-            except Exception:
-                self.logger.error(traceback.format_exc())
+            except:
+                # force stop in any unclear case
+                await self.stop()
                 raise
 
         # put request to the queue
@@ -337,8 +334,10 @@ class TorConnection:
             # handle event
             try:
                 await self.handle_event(event)
-            except Exception:
-                self.logger.error(traceback.format_exc())
+            except:
+                # force stop in any unclear case
+                await self.stop()
+                raise
 
 
     async def handle_event(self, event):
