@@ -9,7 +9,8 @@ This module implements the basic communication with Tor control port.
 
 import asyncio
 from dataclasses import dataclass
-import re
+
+from .parsers import parse_addr
 
 
 @dataclass
@@ -92,28 +93,13 @@ class TorConnection:
         if self.control_port.isdigit():
             return 'localhost', int(self.control_port)
 
-        # IPv6 with port?
-        matchobj = re.match(r'\[(.*)\]:(\d+)', self.control_port)
-        if matchobj:
-            addr, port = matchobj.groups()
-            return addr, int(port)
+        host, port = parse_addr(self.control_port)
+        if host is None:
+            host = 'localhost'
+        if port is None:
+            port = self._default_port
 
-        # IPv4/hostname without port?
-        if ':' not in self.control_port:
-            return self.control_port, self._default_port
-
-        # IPv4/hostname with port?
-        addr, port = self.control_port.rsplit(':', 1)
-        if ':' in addr:
-            # looks like IPv6 without port
-            return self.control_port, self._default_port
-
-        if not port.isdigit():
-            # unknown mess, let getaddrinfo deal with it
-            return self.control_port, self._default_port
-
-        # looks like IPv4/hostname with port
-        return addr, int(port)
+        return host, port
 
 
     async def stop(self):

@@ -12,6 +12,7 @@ Many parts of this code are based on Stem:
 
 import base64
 import binascii
+from urllib.parse import urlparse
 
 
 def safe_b64decode(s):
@@ -27,6 +28,19 @@ def base64_to_hex(s):
     return binascii.hexlify(
         safe_b64decode(s)
     ).decode('ascii').upper()
+
+def parse_addr(addr):
+    '''
+    Parse addr in the form host:port where host can be name, IPv4, or IPv6 address.
+    Return host:str, port:int
+    '''
+    # use some valid scheme to force parsing netloc
+    parsed = urlparse(f'http://{addr}')
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+    return parsed.hostname, port
 
 def _parse_r_line(parts):
     # Parses a RouterStatusEntry's 'r' line. They're very nearly identical for
@@ -58,13 +72,13 @@ def _parse_a_line(parts):
     # "a" SP address ":" portlist
     # example: a [2001:888:2133:0:82:94:251:204]:9001
 
-    if ':' not in parts[0]:
-        raise ValueError(f"'a' line must be of the form '[address]:[ports]': {parts[0]}")
+    host, port = parse_addr(parts[0])
+    if host is None or port is None:
+        raise ValueError(f"'a' line must be of the form '[address]:[port]': {parts[0]}")
 
-    address, port = parts[0].rsplit(':', 1)
     return dict(
-        or_addresses = [address.lstrip('[').rstrip(']')],
-        port = int(port)
+        or_addresses = host,
+        port = port
     )
 
 def _parse_s_line(parts):
